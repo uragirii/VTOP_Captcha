@@ -15,6 +15,14 @@ from selenium.webdriver.chrome.options import Options
 import base64
 import random
 import os
+from PIL import Image
+from PIL import ImageFilter
+import json
+
+#Constants
+CAPTCHA_DIM = (180, 45)
+CHARACTER_DIM = (30, 32)
+#Above values were checked from various captchas
 
 def captcha():
     """
@@ -50,5 +58,32 @@ def download_captcha(num=1):
         with open(image_name, "wb") as fh:
             fh.write(base64.b64decode(base64_image))
     
+def remove_pixel_noise(img):
+    """
+    this function removes the one pixel noise in the captcha
+    """
+    img_width = CAPTCHA_DIM[0]
+    img_height = CAPTCHA_DIM[1]
 
-download_captcha()
+    char_width = CHARACTER_DIM[0]
+    char_height = CHARACTER_DIM[1]
+
+    img_matrix = img.convert('L').load()
+    # Remove noise and make image binary
+    for y in range(1, img_height - 1):
+        for x in range(1, img_width - 1):
+            if img_matrix[x, y-1] == 255 and img_matrix[x, y] == 0 and img_matrix[x, y+1] == 255:
+                img_matrix[x, y] = 255
+            if img_matrix[x-1, y] == 255 and img_matrix[x, y] == 0 and img_matrix[x+1, y] == 255:
+                img_matrix[x, y] = 255
+            if img_matrix[x, y] != 255 and img_matrix[x, y] != 0:
+                img_matrix[x, y] = 255
+
+    # Load Bitmaps for each characters
+    bitmaps = json.load(open("bitmaps.json"))
+    print(bitmaps["1"])
+# Uncomment this line to download captcha
+# download_captcha()
+
+img = Image.open('captcha.png')
+remove_pixel_noise(img)
