@@ -65,9 +65,6 @@ def remove_pixel_noise(img):
     img_width = CAPTCHA_DIM[0]
     img_height = CAPTCHA_DIM[1]
 
-    char_width = CHARACTER_DIM[0]
-    char_height = CHARACTER_DIM[1]
-
     img_matrix = img.convert('L').load()
     # Remove noise and make image binary
     for y in range(1, img_height - 1):
@@ -79,11 +76,60 @@ def remove_pixel_noise(img):
             if img_matrix[x, y] != 255 and img_matrix[x, y] != 0:
                 img_matrix[x, y] = 255
 
-    # Load Bitmaps for each characters
+    return img_matrix
+
+def identify_chars(img_matrix):
+    """
+    This function identifies and returns the captcha
+    """
+
+    img_width = CAPTCHA_DIM[0]
+    img_height = CAPTCHA_DIM[1]
+
+    char_width = CHARACTER_DIM[0]
+    char_height = CHARACTER_DIM[1]
+
+    char_crop_threshold = {'upper': 12, 'lower': 44}
+
     bitmaps = json.load(open("bitmaps.json"))
-    print(bitmaps["1"])
+    captcha =""
+
+    # loop through individual characters
+    for i in range(char_width, img_width + 1, char_width):
+
+        # crop with left, top, right, bottom coordinates
+        img_char_matrix = img.crop(
+            (i-char_width, char_crop_threshold['upper'], i, char_crop_threshold['lower'])).convert('L').load()
+
+        matches = {}
+
+        for character in bitmaps:
+            match_count = 0
+            black_count = 0
+
+            lib_char_matrix = bitmaps[character]
+
+            for y in range(0, char_height):
+                for x in range(0, char_width):
+                    if img_char_matrix[x, y] == lib_char_matrix[y][x] and lib_char_matrix[y][x] == 0:
+                        match_count += 1
+                    if lib_char_matrix[y][x] == 0:
+                        black_count += 1
+
+            perc = float(match_count)/float(black_count)
+            matches.update({perc: character[0].upper()})
+
+        try:
+            captcha += matches[max(matches.keys())]
+        except ValueError:
+            captcha += "0"
+
+    return captcha
+
 # Uncomment this line to download captcha
 # download_captcha()
 
 img = Image.open('captcha.png')
-remove_pixel_noise(img)
+img_matrix = remove_pixel_noise(img)
+captcha = identify_chars(img_matrix)
+print("Captcha is", captcha)
